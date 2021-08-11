@@ -36,8 +36,6 @@ class PiGpioServiceProvider extends ServiceProvider
     public function register() : void
     {
         $this->bindings();
-
-        $pin = app()->make(Pin::class);
     }
 
     /**
@@ -62,9 +60,9 @@ class PiGpioServiceProvider extends ServiceProvider
      */
     private function setCommands() : void
     {
-        $this->commands([
-            ExecProcess::class,
-        ]);
+//        $this->commands([
+//            ExecProcess::class,
+//        ]);
     }
 
     /**

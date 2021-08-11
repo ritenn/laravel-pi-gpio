@@ -5,9 +5,9 @@ namespace Ritenn\PiGpio\Main;
 
 use Ritenn\PiGpio\Interfaces\FilesystemInterface;
 use Ritenn\PiGpio\Interfaces\GpioInterface;
-use Illuminate\Support\Collection;
+use Ritenn\PiGpio\Interfaces\PwmInterface;
 
-class Gpio implements GpioInterface
+class Pin
 {
     /**
      * @var FilesystemInterface
@@ -15,133 +15,66 @@ class Gpio implements GpioInterface
     private $filesystem;
 
     /**
-     * @var Collection - int pin_numbers
+     * @var GpioInterface
      */
-    private $pins;
+    private $gpio;
 
     /**
-     * High state
+     * @var PwmInterface
      */
-    private const LOW = 0;
+    private $pwm;
 
     /**
-     * Low state
-     */
-    private const HIGH = 1;
-
-    /**
-     * Gpio constructor.
+     * Pin constructor.
      * @param FilesystemInterface $filesystem
+     * @param GpioInterface $gpio
+     * @param PwmInterface $pwm
      */
-    public function __construct(FilesystemInterface $filesystem)
+    public function __construct(FilesystemInterface $filesystem, GpioInterface $gpio, PwmInterface $pwm)
     {
         $this->filesystem = $filesystem;
+        $this->gpio = $gpio;
+        $this->pwm = $pwm;
+    }
 
-        $this->exportMultipleIfUnexported(... $pinsNumbers);
+    /**
+     * @param int ...$pinsNumbers
+     *
+     * @return GpioInterface
+     * @throws \Exception
+     */
+    public function set(int ...$pinsNumbers) : GpioInterface
+    {
+        return $this->gpio->set(...$pinsNumbers);
+    }
 
-        $this->pins = collect($pinsNumbers);
-
-        usleep(50000); // wait for pin(s) to be exported
-
-        return $this;
-
-        $this->pins->each(function($pin) {
-
-            $this->setDirection($pin, 'out');
-        });
-
-        return $this;
-
-        $this->pins->each(function($pin) {
-
-            $this->setDirection($pin, 'in');
-        });
-
-        return $this;
-
-        $this->pins->each(function($pin) {
-
-            $this->setValue($pin, self::LOW);
-        });
-
-        return $this;
-
-        $this->pins->each(function($pin) {
-
-            $this->setValue($pin, self::HIGH);
-        });
-
-        return $this;
-
-        return $this->pins->mapWithKeys(function($pin) {
-
-            return [ $pin => $this->getValue($pin) ];
-        });
-
-        return $this->pins->mapWithKeys(function($pin) {
-
-            return [ $pin => $this->getDirection($pin) ];
-        });
-
-        try {
-
-            $this->pins->each(function($pin) {
-
-                $this->unexportSingle($pin);
-            });
-
-            $this->pins = collect([]);
-
-        } catch (\Exception $exception) {
-
-            \Log::error( '[Error during GPIO unexport] ' . $exception->getMessage() );
-
-            return false;
-        }
-
-        return true;
-
-        if ( ! in_array($state, array(0, 1)) )
+    /**
+     * @param int ...$pinsNumbers
+     *
+     * @return PwmInterface
+     * @throws \Exception
+     */
+    public function setPwm(int ...$pinsNumbers) : PwmInterface
+    {
+        if ( ! $this->isPwmPin($pinsNumbers) )
         {
-            throw new \Exception('Invalid pin state.');
+            throw new \Exception('Not all given pins are PWM');
         }
 
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'gpio' . $pin . DIRECTORY_SEPARATOR . 'value';
+        return $this->pwm->set(...$pinsNumbers);
+    }
 
-        return $this->filesystem->write($filename, $state);
+    /**
+     * @param array $pinsNumbers
+     *
+     * @return bool
+     */
+    public function isPwmPin(array $pinsNumbers) : bool
+    {
+        return collect($pinsNumbers)->filter(function($pin) {
 
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'gpio' . $pin . DIRECTORY_SEPARATOR . 'value';
-
-        return $this->filesystem->read($filename);
-
-        if ( ! in_array($direction, array('in', 'out')) )
-        {
-            throw new \Exception('Invalid pin direction.');
-        }
-
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'gpio' . $pin . DIRECTORY_SEPARATOR . 'direction';
-
-        return $this->filesystem->write($filename, $direction);
-
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'gpio' . $pin . DIRECTORY_SEPARATOR . 'direction';
-
-        return $this->filesystem->read($filename) === 'in' ? 'INPUT' : 'OUTPUT';
-
-        $this->getUnexportedPins(...$pinsNumbers)
-            ->each(function($pin) {
-
-                $this->exportSingle($pin);
-            });
-
-        return collect($pinsNumbers)
-            ->diff( $this->filesystem->getExportedPins() );
-
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'export';
-
-        return $this->filesystem->write($filename, $pin);
-
-        $filename = $this->filesystem->gpioPath . DIRECTORY_SEPARATOR . 'unexport';
-
-        return $this->filesystem->write($filename, $pin);
+                return in_array($pin, config('gpio.pwm_pins'));
+            })
+                ->count() === count($pinsNumbers);
     }
 }
